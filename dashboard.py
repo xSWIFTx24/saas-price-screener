@@ -17,7 +17,7 @@ supabase = create_client(url, key)
 
 TABLE_NAME = "trending_products"
 
-# Custom Styling for Mobile-Optimized Aesthetic
+# Custom Styling for Mobile-Optimized Aesthetic & Thumbnails
 st.markdown("""
     <style>
     .main {
@@ -29,6 +29,10 @@ st.markdown("""
         border-radius: 8px;
         font-weight: bold;
     }
+    img {
+        border-radius: 8px;
+        object-fit: cover;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -37,7 +41,7 @@ st.markdown("<h1 style='text-align: center;'>✨ Viral Finds & Dupes</h1>", unsa
 st.markdown("<p style='text-align: center; color: gray;'>As seen on TikTok & IG Reels. Shop my exact aesthetic recommendations below!</p>", unsafe_allow_html=True)
 st.markdown("---")
 
-# Sidebar for Admin Control (Allows manual additions/updates)
+# Sidebar for Admin Control (Allows manual additions/updates including images)
 with st.sidebar:
     st.header("⚙️ Store Admin Panel")
     st.subheader("Add or Update Product")
@@ -46,19 +50,23 @@ with st.sidebar:
         admin_title = st.text_input("Product Title")
         admin_category = st.selectbox("Category", ["Dupes & Home", "Aesthetic Room Decor", "Glow-Up & Beauty", "Pantry & Organization", "Fashion Staples"])
         admin_price = st.text_input("Price (e.g., $18.99)")
+        admin_image_url = st.text_input("Image Thumbnail URL", value="https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300")
         admin_product_url = st.text_input("Original Product URL", value="https://")
         admin_affiliate_url = st.text_input("Affiliate Tracking URL", value="https://")
         
         submitted = st.form_submit_button("Save Product")
         if submitted and admin_title and admin_price:
             try:
-                supabase.table(TABLE_NAME).upsert({
+                # Check if image_url column exists or insert safely
+                payload = {
                     "title": admin_title,
                     "category": admin_category,
                     "price": admin_price,
+                    "image_url": admin_image_url,
                     "product_url": admin_product_url,
                     "affiliate_url": admin_affiliate_url
-                }, on_conflict="title").execute()
+                }
+                supabase.table(TABLE_NAME).upsert(payload, on_conflict="title").execute()
                 st.success(f"Successfully saved {admin_title}!")
                 st.rerun()
             except Exception as e:
@@ -72,7 +80,7 @@ try:
     if data:
         df = pd.DataFrame(data)
         
-        # Category Filter Pills / Selectbox
+        # Category Filter Selectbox
         categories = ["All"] + list(df["category"].unique())
         selected_category = st.selectbox("Filter by Category:", categories)
         
@@ -81,42 +89,58 @@ try:
             
         st.markdown(f"### 🛍️ Curated Products ({len(df)})")
         
-        # Render as clean, high-converting product rows/cards
+        # Ensure image_url column exists in dataframe to prevent key errors
+        if "image_url" not in df.columns:
+            df["image_url"] = ""
+
+        # Render as a rich, thumbnail-supported product grid
         for index, row in df.iterrows():
             with st.container():
-                col1, col2 = st.columns([3, 1])
-                with col1:
-                    st.markdown(f"**{row.get('title', 'Product')}**")
-                    st.caption(f"📂 {row.get('category', 'General')} | 💰 **{row.get('price', '$0.00')}**")
+                col_img, col_info, col_btn = st.columns([1, 2.2, 1.2])
                 
-                with col2:
+                # Column 1: Product Thumbnail Image
+                with col_img:
+                    img_src = row.get('image_url')
+                    if pd.notna(img_src) and str(img_src).startswith("http"):
+                        st.image(img_src, use_column_width=True)
+                    else:
+                        # Fallback icon if no image provided
+                        st.markdown("<div style='text-align: center; font-size: 35px; padding-top: 10px;'>📦</div>", unsafe_allow_html=True)
+                
+                # Column 2: Product Title, Category, & Price
+                with col_info:
+                    st.markdown(f"**{row.get('title', 'Product')}**")
+                    st.caption(f"📂 {row.get('category', 'General')}  \n💰 **{row.get('price', '$0.00')}**")
+                
+                # Column 3: High-Converting CTA Button
+                with col_btn:
                     aff_link = row.get('affiliate_url') or row.get('product_url') or '#'
-                    # High-converting CTA button styling matching social commerce vibes
                     st.markdown(
                         f"""
-                        <a href="{aff_link}" target="_blank" style="
-                            display: block;
-                            text-align: center;
-                            background-color: #ff3366;
-                            color: white;
-                            padding: 8px 12px;
-                            border-radius: 6px;
-                            text-decoration: none;
-                            font-weight: bold;
-                            font-size: 14px;
-                            margin-top: 5px;
-                        ">Claim Deal 🔥</a>
+                        <div style="padding-top: 8px;">
+                            <a href="{aff_link}" target="_blank" style="
+                                display: block;
+                                text-align: center;
+                                background-color: #ff3366;
+                                color: white;
+                                padding: 10px 8px;
+                                border-radius: 6px;
+                                text-decoration: none;
+                                font-weight: bold;
+                                font-size: 13px;
+                            ">Claim Deal 🔥</a>
+                        </div>
                         """,
                         unsafe_allow_html=True
                     )
                 st.markdown("---")
                 
-        # Expandable raw data view for debugging / admin management
+        # Expandable raw data view for debugging
         with st.expander("🛠️ View Raw Database"):
             st.dataframe(df, use_container_width=True)
             
     else:
-        st.warning("No products found in your database yet. Use the sidebar admin panel to add your first product or run your trend importer script!")
+        st.warning("No products found in your database yet. Use the sidebar admin panel to add products!")
 
 except Exception as e:
     st.error(f"Error loading products from Supabase: {e}")
