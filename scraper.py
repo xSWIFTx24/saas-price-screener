@@ -1,7 +1,8 @@
 import os
 from supabase import create_client, Client
+from trendspyg import download_google_trends_rss
 
-# 1. Load Environment Variables (Supabase Credentials)
+# 1. Load Environment Variables
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
@@ -11,190 +12,85 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 TABLE_NAME = "trending_products"
 
-def fetch_trending_products():
+def fetch_live_google_trends():
     """
-    Curated list of 25 viral short-form video products across 
-    Dupes, Aesthetic Decor, Glow-Up, Organization, and Fashion Staples.
+    Pulls real-time trending searches from Google Trends RSS feed 
+    using trendspyg, mapping live search momentum into product ideas.
     """
-    print("Preparing 25 trending products for sync...")
+    print("Fetching live trending data from Google Trends...")
+    dynamic_products = []
     
-    products = [
-        # --- Dupes & Home ---
+    try:
+        # Fetch real-time US trending searches snapshot
+        trend_data = download_google_trends_rss(geo='US', normalize=True)
+        items = trend_data.get('trends', [])
+        
+        for item in items[:10]: # Grab top 10 breaking trends
+            keyword = item.get('keyword')
+            # Format into a product-like entry matching your Supabase table
+            dynamic_products.append({
+                "title": f"Trending: {keyword.title()} Find",
+                "category": "Viral Live Trends",
+                "price": "$19.99", # Default placeholder price for live trends
+                "image_url": "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300",
+                "product_url": f"https://www.amazon.com/s?k={keyword.replace(' ', '+')}"
+            })
+    except Exception as e:
+        print(f"Warning: Could not fetch live RSS trends ({e}). Falling back to curated catalog.")
+        
+    return dynamic_products
+
+def get_core_catalog():
+    """Your core high-converting evergreen dupe and aesthetic catalog."""
+    return [
         {
             "title": "Cloud Couch Aesthetic Modular Dupe",
             "category": "Dupes & Home",
             "price": "$450.00",
+            "image_url": "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=300",
             "product_url": "https://www.amazon.com/dp/B08X5XYZ1"
         },
-        {
-            "title": "Skims Ribbed Long Dress Dupe",
-            "category": "Dupes & Home",
-            "price": "$28.00",
-            "product_url": "https://www.amazon.com/dp/B09X5XYZ2"
-        },
-        {
-            "title": "Mason Pearson Hairbrush Viral Dupe",
-            "category": "Dupes & Home",
-            "price": "$16.99",
-            "product_url": "https://www.amazon.com/dp/B07X5XYZ3"
-        },
-        {
-            "title": "Bala Bangles Wrist/Ankle Weight Dupe",
-            "category": "Dupes & Home",
-            "price": "$19.50",
-            "product_url": "https://www.amazon.com/dp/B08X5XYZ4"
-        },
-        {
-            "title": "Brumate Era Insulated Tumbler Dupe",
-            "category": "Dupes & Home",
-            "price": "$22.99",
-            "product_url": "https://www.amazon.com/dp/B0AX5XYZ5"
-        },
-
-        # --- Aesthetic Room Decor ---
         {
             "title": "16-Color Sunset Projection Lamp",
             "category": "Aesthetic Room Decor",
             "price": "$18.99",
+            "image_url": "https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=300",
             "product_url": "https://www.amazon.com/dp/B07Z5XYZ6"
         },
         {
-            "title": "Smart LED RGB Strip Lights (Works with Alexa)",
-            "category": "Aesthetic Room Decor",
-            "price": "$24.99",
-            "product_url": "https://www.amazon.com/dp/B08Z5XYZ7"
-        },
-        {
-            "title": "Minimalist Wooden Sunrise Alarm Clock",
-            "category": "Aesthetic Room Decor",
-            "price": "$35.00",
-            "product_url": "https://www.amazon.com/dp/B09Z5XYZ8"
-        },
-        {
-            "title": "Floating Acrylic Invisible Bookshelves (4 Pack)",
-            "category": "Aesthetic Room Decor",
-            "price": "$21.99",
-            "product_url": "https://www.amazon.com/dp/B07Z5XYZ9"
-        },
-        {
-            "title": "Aesthetic Glass Mushroom Table Lamp",
-            "category": "Aesthetic Room Decor",
-            "price": "$39.99",
-            "product_url": "https://www.amazon.com/dp/B08Z5XYZ10"
-        },
-
-        # --- Glow-Up & Beauty ---
-        {
-            "title": "Heatless Curling Rod Headband Kit",
+            "title": "Heateless Curling Rod Headband Kit",
             "category": "Glow-Up & Beauty",
             "price": "$12.50",
+            "image_url": "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=300",
             "product_url": "https://www.amazon.com/dp/B07Y5XYZ11"
         },
-        {
-            "title": "Ice Roller for Face & Eye Puffiness",
-            "category": "Glow-Up & Beauty",
-            "price": "$14.99",
-            "product_url": "https://www.amazon.com/dp/B08Y5XYZ12"
-        },
-        {
-            "title": "Electric Scalp Massager Shampoo Brush",
-            "category": "Glow-Up & Beauty",
-            "price": "$9.99",
-            "product_url": "https://www.amazon.com/dp/B09Y5XYZ13"
-        },
-        {
-            "title": "Rose Quartz Gua Sha & Facial Roller Set",
-            "category": "Glow-Up & Beauty",
-            "price": "$11.99",
-            "product_url": "https://www.amazon.com/dp/B07Y5XYZ14"
-        },
-        {
-            "title": "Portable Mini Makeup Fridge with LED Mirror",
-            "category": "Glow-Up & Beauty",
-            "price": "$45.00",
-            "product_url": "https://www.amazon.com/dp/B08Y5XYZ15"
-        },
-
-        # --- Pantry & Organization ---
-        {
-            "title": "Minimalist Clear Glass Spice Jars (24 Pack)",
-            "category": "Pantry & Organization",
-            "price": "$24.99",
-            "product_url": "https://www.amazon.com/dp/B07W5XYZ16"
-        },
-        {
-            "title": "Aesthetic Clear Fridge & Freezer Bins (6 Pack)",
-            "category": "Pantry & Organization",
-            "price": "$32.99",
-            "product_url": "https://www.amazon.com/dp/B08W5XYZ17"
-        },
-        {
-            "title": "Automatic Soap Dispenser for Kitchen/Bath",
-            "category": "Pantry & Organization",
-            "price": "$19.99",
-            "product_url": "https://www.amazon.com/dp/B09W5XYZ18"
-        },
-        {
-            "title": "Under-Sink Sliding 2-Tier Storage Organizer",
-            "category": "Pantry & Organization",
-            "price": "$26.50",
-            "product_url": "https://www.amazon.com/dp/B07W5XYZ19"
-        },
-        {
-            "title": "Lazy Susan Rotating Pantry Organizer Bins",
-            "category": "Pantry & Organization",
-            "price": "$21.00",
-            "product_url": "https://www.amazon.com/dp/B08W5XYZ20"
-        },
-
-        # --- Fashion Staples ---
         {
             "title": "Viral Seamless Butter-Soft Workout Set",
             "category": "Fashion Staples",
             "price": "$34.99",
+            "image_url": "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=300",
             "product_url": "https://www.amazon.com/dp/B07V5XYZ21"
-        },
-        {
-            "title": "Oversized Heavyweight Aesthetic Hoodie",
-            "category": "Fashion Staples",
-            "price": "$38.00",
-            "product_url": "https://www.amazon.com/dp/B08V5XYZ22"
-        },
-        {
-            "title": "Minimalist Claw Clips for Thick Hair (8 Pack)",
-            "category": "Fashion Staples",
-            "price": "$11.99",
-            "product_url": "https://www.amazon.com/dp/B09V5XYZ23"
-        },
-        {
-            "title": "Waterproof Gold Chunky Hoop Earrings",
-            "category": "Fashion Staples",
-            "price": "$14.50",
-            "product_url": "https://www.amazon.com/dp/B07V5XYZ24"
-        },
-        {
-            "title": "Quilted Puffer Crossbody Cloud Bag",
-            "category": "Fashion Staples",
-            "price": "$25.99",
-            "product_url": "https://www.amazon.com/dp/B08V5XYZ25"
         }
     ]
-    
-    return products
 
-def process_and_insert_data(products):
-    success_count = 0
+def process_and_sync():
+    # Combine live breaking search trends with your high-converting core items
+    live_trends = fetch_live_google_trends()
+    core_items = get_core_catalog()
+    all_products = live_trends + core_items
     
-    for item in products:
-        # Append your Amazon Associates tracking tag (update tag=yourstore-20 to your actual ID)
+    success_count = 0
+    for item in all_products:
         base_url = item["product_url"]
+        # Affiliate tracking tag insertion
         affiliate_tag = "?tag=yourstore-20"
-        affiliate_url = f"{base_url}{affiliate_tag}"
+        affiliate_url = base_url if "?" in base_url else f"{base_url}{affiliate_tag}"
         
         payload = {
             "title": item["title"],
             "category": item["category"],
             "price": item["price"],
+            "image_url": item.get("image_url", ""),
             "product_url": base_url,
             "affiliate_url": affiliate_url
         }
@@ -206,9 +102,7 @@ def process_and_insert_data(products):
         except Exception as e:
             print(f"Error syncing {item['title']}: {e}")
             
-    print(f"\nSync complete! Successfully loaded {success_count} of {len(products)} products into Supabase.")
+    print(f"\nSync complete! Successfully processed {success_count} products into Supabase.")
 
 if __name__ == "__main__":
-    items = fetch_trending_products()
-    if items:
-        process_and_insert_data(items)
+    process_and_sync()
