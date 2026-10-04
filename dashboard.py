@@ -1,23 +1,34 @@
+import os
+from supabase import create_client
 import streamlit as st
 import pandas as pd
 
-# 1. Configure the page
-st.set_page_config(page_title="Social Trends", page_icon="📈", layout="wide")
+st.set_page_config(page_title="SaaS Price Screener", layout="wide")
 
-st.title("📈 Daily Social Media Trends")
-st.markdown("Tracking top performing fashion Shorts across platforms.")
+# Connect to Supabase using environment variables (or Streamlit Secrets)
+url = os.environ.get("SUPABASE_URL") or st.secrets.get("SUPABASE_URL")
+key = os.environ.get("SUPABASE_KEY") or st.secrets.get("SUPABASE_KEY")
+supabase = create_client(url, key)
 
-# 2. Load mock data (In production, this would be a database query)
-@st.cache_data
-def load_data():
-    return pd.DataFrame({
-        "Trend Topic": ["#OOTD", "#Y2K", "#Streetwear", "#Vintage", "#Thrifting"],
-        "Daily Views": [1500000, 940000, 850000, 620000, 310000],
-        "Weekly Growth (%)": [12, 18, 5, -2, 4],
-        "Platform": ["TikTok", "YouTube", "TikTok", "Instagram", "YouTube"]
-    })
+st.title("🚀 Live SaaS Price Screener")
 
-df = load_data()
+# Fetch data from your Supabase table 
+# (Replace "your_table_name" with the actual name of your table in Supabase)
+try:
+    response = supabase.table("your_table_name").select("*").execute()
+    data = response.data
+    
+    if data:
+        df = pd.DataFrame(data)
+        
+        # Display metrics or your main data table
+        st.metric(label="Total Tracked Items", value=len(df))
+        st.dataframe(df, use_container_width=True)
+    else:
+        st.warning("Connected to Supabase successfully, but the table is currently empty. Run your GitHub Action to scrape some data!")
+
+except Exception as e:
+    st.error(f"Error connecting to Supabase: {e}")
 
 # 3. Create high-level metrics
 st.subheader("At a Glance")
