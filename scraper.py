@@ -1,71 +1,91 @@
 import os
-from playwright.sync_api import sync_playwright
+import requests
 from supabase import create_client, Client
 
-# 1. Connect to Supabase
+# 1. Load Environment Variables (Supabase Credentials)
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise ValueError("Missing SUPABASE_URL or SUPABASE_KEY environment variables.")
+
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+TABLE_NAME = "trending_products"
 
-# 2. Define AI targets with manual fallback prices to guarantee successful inserts
-AI_TARGETS = [
-    {
-        "saas_name": "ChatGPT Plus",
-        "url": "https://openai.com/chatgpt/pricing/",
-        "affiliate_url": "https://openai.com/chatgpt",
-        "fallback_price": "$20/mo"
-    },
-    {
-        "saas_name": "Perplexity Pro",
-        "url": "https://www.perplexity.ai/pro",
-        "affiliate_url": "https://www.perplexity.ai/pro?ref=your_affiliate_code",
-        "fallback_price": "$20/mo"
-    },
-    {
-        "saas_name": "Cursor Pro",
-        "url": "https://www.cursor.com",
-        "affiliate_url": "https://www.cursor.com?ref=your_affiliate_code",
-        "fallback_price": "$20/mo"
-    }
-]
+def fetch_trending_products():
+    """
+    Simulates fetching high-intent viral products from a trending data source,
+    API, or curated list. (Replace this function with your scraper API call 
+    or Apify webhook data ingestion when ready).
+    """
+    print("Fetching latest viral and trending products...")
+    
+    # Mock data representing trending social commerce items (Dupes & Aesthetic Decor)
+    raw_trending_data = [
+        {
+            "title": "Cloud Couch Aesthetic Dupe (Modular)",
+            "category": "Dupes & Home",
+            "price": "$450.00",
+            "product_url": "https://www.amazon.com/dp/example1",
+            "tag": "amazon"
+        },
+        {
+            "title": "Sunset Projection Lamp (16-Color)",
+            "category": "Aesthetic Room Decor",
+            "price": "$18.99",
+            "product_url": "https://www.amazon.com/dp/example2",
+            "tag": "amazon"
+        },
+        {
+            "title": "Heateless Curling Rod Headband",
+            "category": "Glow-Up & Beauty",
+            "price": "$12.50",
+            "product_url": "https://www.amazon.com/dp/example3",
+            "tag": "amazon"
+        },
+        {
+            "title": "Minimalist Clear Spice Jar Set (24 Pack)",
+            "category": "Pantry & Organization",
+            "price": "$24.99",
+            "product_url": "https://www.amazon.com/dp/example4",
+            "tag": "amazon"
+        }
+    ]
+    
+    return raw_trending_data
 
-# 3. Run Playwright Scraper with Graceful Fallbacks
-with sync_playwright() as p:
-    browser = p.chromium.launch(headless=True)
-    page = browser.new_page(
-        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    )
-
-    for target in AI_TARGETS:
-        price_text = target["fallback_price"] # Default to verified price if blocked
+def process_and_insert_data(products):
+    """
+    Cleans data, injects custom affiliate tracking parameters, 
+    and upserts into Supabase.
+    """
+    success_count = 0
+    
+    for item in products:
+        # Generate or append your custom affiliate tracking tag here
+        base_url = item["product_url"]
+        affiliate_tag = "?tag=yourstore-20"  # Your Amazon Associates / affiliate tracking ID
+        affiliate_url = f"{base_url}{affiliate_tag}"
         
-        try:
-            print(f"Attempting to fetch {target['saas_name']}...")
-            page.goto(target["url"], timeout=20000, wait_until="domcontentloaded")
-            
-            # Quick check if price exists on page text
-            content = page.content()
-            if "$" in content:
-                # Keep fallback or extract if simple
-                pass
-                
-        except Exception as e:
-            print(f"Anti-bot block or timeout on {target['saas_name']}, using verified price: {e}")
-
-        # Prepare data mapping including your affiliate link
-        data_to_insert = {
-            "title": target["saas_name"],
-            "price": price_text,
-            "url": target["url"],
-            "affiliate_url": target["affiliate_url"]
+        payload = {
+            "title": item["title"],
+            "category": item["category"],
+            "price": item["price"],
+            "product_url": base_url,
+            "affiliate_url": affiliate_url
         }
         
         try:
-            # Insert or update into Supabase
-            supabase.table("prices").insert(data_to_insert).execute()
-            print(f"Successfully saved: {target['saas_name']} -> {price_text}")
-        except Exception as db_error:
-            print(f"Database error for {target['saas_name']}: {db_error}")
+            # Upsert based on the unique 'title' constraint to prevent duplicates
+            response = supabase.table(TABLE_NAME).upsert(payload, on_conflict="title").execute()
+            print(f"Successfully inserted/updated: {item['title']}")
+            success_count += 1
+        except Exception as e:
+            print(f"Database error for {item['title']}: {e}")
+            
+    print(f"\nSync complete! Successfully processed {success_count} products into Supabase.")
 
-    browser.close()
+if __name__ == "__main__":
+    trending_items = fetch_trending_products()
+    if trending_items:
+        process_and_insert_data(trending_items)
