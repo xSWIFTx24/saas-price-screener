@@ -3,7 +3,7 @@ name: Daily Product Trend Sync
 on:
   schedule:
     # Runs every day at 6:00 AM UTC (adjust hour as needed)
-    - cron: '0 6 * * '
+    - cron: '0 9 * * '
   workflow_dispatch: # Allows you to manually trigger it anytime via GitHub UI
 
 jobs:
