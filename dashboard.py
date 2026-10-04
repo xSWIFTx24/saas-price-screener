@@ -17,18 +17,37 @@ supabase = create_client(url, key)
 
 TABLE_NAME = "trending_products"
 
-# Custom Styling for Mobile-Optimized Aesthetic & Thumbnails
+# Custom Styling to transform Streamlit into a sleek mobile storefront
 st.markdown("""
     <style>
-    .main {
-        max-width: 600px;
-        margin: 0 auto;
+    /* Force max width to look like a mobile app container and center it */
+    .block-container {
+        max-width: 480px !important;
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+        margin: auto;
     }
+    
+    /* Sleeker typography */
+    h1 {
+        font-size: 1.8rem !important;
+        letter-spacing: -0.5px;
+        text-align: center;
+    }
+    
+    p {
+        text-align: center;
+        color: #a0a0a0;
+    }
+
+    /* Streamlit button styling */
     .stButton>button {
         width: 100%;
         border-radius: 8px;
         font-weight: bold;
     }
+    
+    /* Image thumbnail rounding */
     img {
         border-radius: 8px;
         object-fit: cover;
@@ -37,8 +56,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Profile Header
-st.markdown("<h1 style='text-align: center;'>✨ Viral Finds & Dupes</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: gray;'>As seen on TikTok & IG Reels. Shop my exact aesthetic recommendations below!</p>", unsafe_allow_html=True)
+st.markdown("# ✨ Viral Finds & Dupes")
+st.markdown("As seen on TikTok & IG Reels. Shop my exact aesthetic recommendations below!")
 st.markdown("---")
 
 # Sidebar for Admin Control (Allows manual additions/updates including images)
@@ -48,7 +67,7 @@ with st.sidebar:
     
     with st.form("admin_form"):
         admin_title = st.text_input("Product Title")
-        admin_category = st.selectbox("Category", ["Dupes & Home", "Aesthetic Room Decor", "Glow-Up & Beauty", "Pantry & Organization", "Fashion Staples"])
+        admin_category = st.selectbox("Category", ["Viral Live Trends", "Dupes & Home", "Aesthetic Room Decor", "Glow-Up & Beauty", "Pantry & Organization", "Fashion Staples"])
         admin_price = st.text_input("Price (e.g., $18.99)")
         admin_image_url = st.text_input("Image Thumbnail URL", value="https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300")
         admin_product_url = st.text_input("Original Product URL", value="https://")
@@ -57,7 +76,6 @@ with st.sidebar:
         submitted = st.form_submit_button("Save Product")
         if submitted and admin_title and admin_price:
             try:
-                # Check if image_url column exists or insert safely
                 payload = {
                     "title": admin_title,
                     "category": admin_category,
@@ -93,7 +111,7 @@ try:
         if "image_url" not in df.columns:
             df["image_url"] = ""
 
-        # Render as a rich, thumbnail-supported product grid
+        # Render as a rich, mobile-optimized product grid
         for index, row in df.iterrows():
             with st.container():
                 col_img, col_info, col_btn = st.columns([1, 2.2, 1.2])
@@ -104,7 +122,6 @@ try:
                     if pd.notna(img_src) and str(img_src).startswith("http"):
                         st.image(img_src, use_column_width=True)
                     else:
-                        # Fallback icon if no image provided
                         st.markdown("<div style='text-align: center; font-size: 35px; padding-top: 10px;'>📦</div>", unsafe_allow_html=True)
                 
                 # Column 2: Product Title, Category, & Price
@@ -121,13 +138,14 @@ try:
                             <a href="{aff_link}" target="_blank" style="
                                 display: block;
                                 text-align: center;
-                                background-color: #ff3366;
+                                background: linear-gradient(135deg, #ff3366 0%, #ff5e62 100%);
                                 color: white;
                                 padding: 10px 8px;
-                                border-radius: 6px;
+                                border-radius: 8px;
                                 text-decoration: none;
                                 font-weight: bold;
                                 font-size: 13px;
+                                box-shadow: 0 4px 12px rgba(255, 51, 102, 0.3);
                             ">Claim Deal 🔥</a>
                         </div>
                         """,
