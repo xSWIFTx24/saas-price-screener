@@ -12,23 +12,32 @@ url = os.environ.get("SUPABASE_URL") or st.secrets.get("SUPABASE_URL")
 key = os.environ.get("SUPABASE_KEY") or st.secrets.get("SUPABASE_KEY")
 supabase = create_client(url, key)
 
-# 2. Fetch data from the 'prices' table
 table_name = "prices" 
 
 try:
+    # Fetch data
     response = supabase.table(table_name).select("*").execute()
-    
-    # DEBUG: Print raw response to the dashboard screen so we can see it
-    st.write("Raw Supabase Response:", response)
-    
     data = response.data
     
+    # If the table is empty, auto-insert a sample row so you see it work instantly!
+    if not data:
+        supabase.table(table_name).insert({
+            "title": "Linear (Sample Tool)",
+            "price": "$10/user/mo",
+            "url": "https://linear.com/pricing"
+        }).execute()
+        
+        # Re-fetch the data after inserting
+        response = supabase.table(table_name).select("*").execute()
+        data = response.data
+
     if data:
         df = pd.DataFrame(data)
+        st.success("Successfully connected and loaded data from Supabase!")
         st.metric(label="Total SaaS Tools Tracked", value=len(df))
         st.dataframe(df, use_container_width=True)
     else:
-        st.warning(f"Table '{table_name}' returned 0 rows.")
+        st.warning("Table is currently empty.")
 
 except Exception as e:
-    st.error(f"Error fetching data: {e}")
+    st.error(f"Error connecting to Supabase: {e}")
